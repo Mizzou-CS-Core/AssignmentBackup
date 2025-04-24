@@ -19,6 +19,9 @@ from subprocess import PIPE, run, DEVNULL, TimeoutExpired
 from csv import DictReader, DictWriter
 from pathlib import Path
 
+from GenGraderTable.grader_table import generate_grader_roster
+
+
 
 class Config:
     def __init__(self, class_code, execution_timeout, roster_invalidation_days, use_header_files, use_makefile,
@@ -109,8 +112,7 @@ def get_assignment_score(config_obj, user_id):
         return False
 
 
-# Generates a roster based on the grader's group on Canvas.
-def generate_grader_roster(context):
+
     config_obj = context.config_obj
     command_args_obj = context.command_args_obj
     csv_rosters_path = config_obj.hellbender_lab_dir + config_obj.class_code + "/csv_rosters"
@@ -198,8 +200,7 @@ def gen_directories(context):
     print(f"{Fore.BLUE}Generating a cache folder{Style.RESET_ALL}")
     os.makedirs(config_obj.get_complete_cache_path())
 
-    generate_grader_roster(context)
-    # generate_assignment_list(course_id, token, cache_path = main_dir + "/" + cache_dir)
+    generate_grader_roster(course_id=context.config_obj.course_id, canvas_token=context.config_obj.api_token, grader_name=context.command_args_obj.grader_name, path=f"{context.config_obj.hellbender_lab_dir}{context.config_obj.class_code}/csv_rosters")
 
     param_lab_dir = command_args_obj.lab_name + "_backup"
     param_lab_path = config_obj.get_complete_local_path() + "/" + param_lab_dir
