@@ -1,0 +1,3 @@
+[submodule "CanvasRequestLibrary"]
+	path = CanvasRequestLibrary
+	url = git@github.com:Mizzou-CS-Core/CanvasRequestLibrary.git
