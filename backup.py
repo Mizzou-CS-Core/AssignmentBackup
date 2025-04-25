@@ -20,7 +20,7 @@ from csv import DictReader, DictWriter
 from pathlib import Path
 
 from GenGraderTable.grader_table import generate_grader_roster
-from CanvasRequestLibrary import Assignment, CanvasClient
+from CanvasRequestLibrary import Assignment, Submission, CanvasClient
 
 
 
@@ -47,11 +47,14 @@ class Config:
         self.hellbender_lab_dir = hellbender_lab_dir
         self.cache_dir = cache_dir
         # canvas
-        self.api_prefix = api_prefix
-        self.api_token = api_token
         self.course_id = course_id
+        self.api_token = api_token
+        self.api_prefix = api_prefix
         self.attendance_assignment_name_scheme = attendance_assignment_name_scheme
         self.attendance_assignment_point_criterion = attendance_assignment_point_criterion
+
+        self.api_client = CanvasClient(token = api_token, url_base=api_prefix)
+
 
     def get_complete_hellbender_path(self):
         return self.hellbender_lab_dir + self.class_code
@@ -83,24 +86,6 @@ def function_usage_help():
     print("Usage: python3 backup.py {lab_name} {TA name}")
     exit()
 
-
-# Wrapper function for requests.get that prints for HTTP errors
-def make_api_call(url, token, headers=None):
-    auth_header = {'Authorization': 'Bearer ' + token}
-    try:
-        if headers is None:
-            response = requests.get(url, headers=auth_header)
-        else:
-            response = requests.get(url, headers=headers + auth_header)
-        if response.status_code == 200:
-            return response
-        else:
-            print(f"{Fore.RED}(ERROR) - HTTP Error {response.status_code}{Style.RESET_ALL}")
-    except requests.exceptions.RequestException as e:
-        print(f'{Fore.RED}(ERROR): {e}{Style.RESET_ALL}')
-    return None
-
-
 # Get individual submission of assignment from cache and determine if the score matches the criteria
 def get_assignment_score(config_obj, user_id):
     with open(config_obj.get_complete_cache_path() + "/attendance_submissions.json", 'r', encoding='utf-8') as file:
@@ -113,26 +98,17 @@ def get_assignment_score(config_obj, user_id):
         return False
 
 # Get list of assignments from Canvas and export to JSON file
-def generate_assignment_list(config_obj, command_args_obj):
-    assignment_id = 0
-    canvas_assignments_api = config_obj.api_prefix + "courses/" + str(config_obj.course_id) + "/assignments?per_page=50"
-    response = make_api_call(canvas_assignments_api, config_obj.api_token)
+def get_attendance_submissions(config_obj, command_args_obj):
+    assignments = config_obj.api_client._assignments.get_assignments_from_course(course_id=config_obj.course_id, per_page=50)
     attendance_name = config_obj.attendance_assignment_name_scheme + command_args_obj.lab_name[3:]
-    for key in response.json():
-        if key['name'] == config_obj.attendance_assignment_name_scheme + command_args_obj.lab_name[3:]:
-            assignment_id = key['id']
-    if assignment_id == 0:
+    assignment_id = next((assignment.id for assignment in assignments if assignment.name == attendance_name), None)
+    if assignment_id is None:
         print(
             f"{Fore.RED}(ERROR) - Unable to find an assignment matching {attendance_name} from Canvas.{Style.RESET_ALL}")
         print(f"{Fore.RED}(ERROR) - Disabling attendance checking for this execution.{Style.RESET_ALL}")
         config_obj.check_attendance = False
         return
-    canvas_assignments_api = config_obj.api_prefix + "courses/" + str(config_obj.course_id) + "/assignments/" + str(
-        assignment_id) + "/submissions?per_page=200"
-    response = make_api_call(canvas_assignments_api, config_obj.api_token)
-
-    with open(config_obj.get_complete_cache_path() + "/attendance_submissions.json", 'w', encoding='utf-8') as file:
-        json.dump(response.json(), file, ensure_ascii=False, indent=4)
+    return config_obj.api_client._assignments.get_submissions_from_assignment(course_id=config_obj.course_id, assignment_id=assignment_id, per_page=50)
 
 
 # Preamble function responsible for generating and prepping any necessary directories and files
@@ -346,7 +322,6 @@ def prepare_toml_doc():
         f.write(dumps(doc))
     print(f"Created default {CONFIG_FILE}")
 
-
 def load_config():
     with open(CONFIG_FILE, 'r') as f:
         content = f.read()
@@ -401,7 +376,7 @@ def main(lab_name, grader):
     context = Context(config_obj, command_args_obj)
     lab_path = gen_directories(context)
     if config_obj.check_attendance:
-        generate_assignment_list(config_obj, command_args_obj)
+        submissions = generate_assignment_list(config_obj, command_args_obj)
     perform_backup(context, lab_path)
 
 
