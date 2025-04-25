@@ -20,6 +20,7 @@ from csv import DictReader, DictWriter
 from pathlib import Path
 
 from GenGraderTable.grader_table import generate_grader_roster
+from CanvasRequestLibrary import Assignment, CanvasClient
 
 
 
@@ -111,57 +112,6 @@ def get_assignment_score(config_obj, user_id):
                     return True
         return False
 
-
-
-    config_obj = context.config_obj
-    command_args_obj = context.command_args_obj
-    csv_rosters_path = config_obj.hellbender_lab_dir + config_obj.class_code + "/csv_rosters"
-    fieldnames = ['pawprint', 'canvas_id', 'name', 'date']
-    # first we'll check if the roster already exists.
-    if os.path.exists(csv_rosters_path + "/" + command_args_obj.grader_name + ".csv") and Path(
-            csv_rosters_path + "/" + command_args_obj.grader_name + ".csv").stat().st_size != 0 and config_obj.roster_invalidation_days > 0:
-        # if it does, let's see how old it is
-        # every student has a date appended to it which should be the same so we'll just check the first one
-        with open(csv_rosters_path + "/" + command_args_obj.grader_name + ".csv", 'r', newline='') as csvfile:
-            reader = DictReader(csvfile, fieldnames=fieldnames)
-            next(reader)  # consume header
-            sample_row = next(reader)
-            stored_date_str = sample_row['date']
-            stored_date_obj = datetime.datetime.strptime(stored_date_str, "%Y-%m-%d %H:%M:%S.%f")
-            invalidation_date = datetime.datetime.now() - datetime.timedelta(days=config_obj.roster_invalidation_days)
-            if stored_date_obj > invalidation_date:
-                print(f"{Fore.BLUE}Roster data is recent enough to be used{Style.RESET_ALL}")
-                return
-    print(f"{Fore.BLUE}Preparing roster data{Style.RESET_ALL}")
-    # firstly, get a list of groups
-    group_api = config_obj.api_prefix + "courses/" + str(config_obj.course_id) + "/groups"
-    groups = make_api_call(group_api, config_obj.api_token)
-    # we need to find the group ID corresponding to the invoked grader
-    group_id = -1
-    for key in groups.json():
-        if key['name'] == command_args_obj.grader_name:
-            group_id = key['id']
-            # if it's still -1, we didn't find it. program will probably crash at some point but we're not going to exit because maybe a cached copy exists?
-    if group_id == -1:
-        print(
-            f"{Fore.RED}A group corresponding to {command_args_obj.grader_name} was not found in the Canvas course {str(config_obj.course_id)}{Style.RESET_ALL}")
-    # now we can retrieve a list of the users in the grader's group
-    group_api = config_obj.api_prefix + "groups/" + str(group_id) + "/users?per_page=100"
-    users_in_group = make_api_call(group_api, config_obj.api_token)
-
-    if not os.path.exists(csv_rosters_path):
-        os.makedirs(csv_rosters_path)
-    with open(csv_rosters_path + "/" + command_args_obj.grader_name + ".csv", 'w', newline='') as csvfile:
-        writer = DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        data = []
-        for key in users_in_group.json():
-            roster_dict = {'pawprint': key['login_id'], 'canvas_id': key['id'], 'name': key['sortable_name'],
-                    'date': datetime.datetime.now()}
-            data.append(roster_dict)
-        writer.writerows(data)
-
-
 # Get list of assignments from Canvas and export to JSON file
 def generate_assignment_list(config_obj, command_args_obj):
     assignment_id = 0
@@ -213,9 +163,6 @@ def gen_directories(context):
         shutil.rmtree(param_lab_path)
     print(f"{Fore.BLUE}Creating a backup folder for {command_args_obj.lab_name}{Style.RESET_ALL}")
     os.makedirs(param_lab_path)
-    # if command_args_obj.make_submission:
-    #     p = Popen(['cs1050start', command_args_obj.lab_name], cwd=config_obj.local_storage_dir )
-    #     p.wait()
     return param_lab_path
 
 
