@@ -3,7 +3,7 @@ import shutil
 import sys
 import re
 import datetime
-
+import CompileAndRun.compile_and_run
 import tomlkit
 from tomlkit import document, table, comment, dumps
 
@@ -16,8 +16,6 @@ from pathlib import Path
 
 from GenGraderTable.grader_table import generate_grader_roster
 from CanvasRequestLibrary import Assignment, Submission, CanvasClient
-
-
 
 class Config:
     def __init__(self, class_code, execution_timeout, roster_invalidation_days, use_header_files, use_makefile,
@@ -199,28 +197,15 @@ def perform_backup(context, lab_path, submissions):
                     if ".c" in filename and config_obj.compile_submissions:
                         print(f"{Fore.BLUE}Compiling student {name}'s lab{Style.RESET_ALL}")
                         if config_obj.use_makefile:
-                            run(["make"], stdout=DEVNULL, cwd=local_name_dir)
+                            CompileAndRun.compile_and_run.compile(compilable_code_path=local_name_dir, filename=filename, use_makefile=True)
                         else:
                             compilable_lab = local_name_dir + "/" + filename
-                            run(["gcc", "-Wall", "-Werror", "-o", local_name_dir + "/a.out", compilable_lab])
+                            CompileAndRun.compile_and_run.compile(compilable_code_path=compilable_lab, filename=filename, use_makefile=False)
                         if config_obj.execute_submissions:
                             try:
                                 print(f"{Fore.BLUE}Executing student {name}'s lab{Style.RESET_ALL}")
-                                executable_path = Path(local_name_dir) / "a.out"
-                                output_log_path = Path(local_name_dir) / "output.log"
-
-                                result = run(["stdbuf", "-oL", executable_path], timeout=config_obj.execution_timeout,
-                                             stdout=PIPE, stderr=PIPE, universal_newlines=True,
-                                             input=config_obj.input_string or None)
-                                with output_log_path.open('w') as log:
-                                    log.write(result.stdout)
-                                if config_obj.generate_valgrind_output:
-                                    valgrind_log_path = Path(local_name_dir) / "valgrind.log"
-                                    result = run(["valgrind", executable_path], timeout=config_obj.execution_timeout,
-                                                 stdout=PIPE, stderr=PIPE, universal_newlines=True,
-                                                 input=config_obj.input_string or None)
-                                    with valgrind_log_path.open('w') as vg_log:
-                                        vg_log.write(result.stderr)
+                                executable_path = Path(local_name_dir)
+                                CompileAndRun.compile_and_run.run_executable(path=executable_path, execution_timeout=config_obj.execution_timeout, input=config_obj.input_string or None, output_logs=True)
                             except TimeoutExpired:
                                 print(f"{Fore.YELLOW}(WARNING) - Student {name}'s lab took too long.{Style.RESET_ALL}")
                             except FileNotFoundError:
