@@ -1,17 +1,12 @@
-# CS 1050 Backup Script
-# Matt Marlow
 import os
 import shutil
 import sys
 import re
-import requests
-import json
 import datetime
 
 import tomlkit
 from tomlkit import document, table, comment, dumps
 
-# https://pypi.org/project/colorama/
 from colorama import Fore
 from colorama import Style
 
@@ -86,16 +81,6 @@ def function_usage_help():
     print("Usage: python3 backup.py {lab_name} {TA name}")
     exit()
 
-# Get individual submission of assignment from cache and determine if the score matches the criteria
-def get_assignment_score(config_obj, user_id):
-    with open(config_obj.get_complete_cache_path() + "/attendance_submissions.json", 'r', encoding='utf-8') as file:
-        submissions = json.load(file)
-
-        for key in submissions:
-            if key['user_id'] == int(user_id):
-                if key['score'] == config_obj.attendance_assignment_point_criterion:
-                    return True
-        return False
 
 # Get list of assignments from Canvas and export to JSON file
 def get_attendance_submissions(config_obj, command_args_obj):
@@ -126,7 +111,7 @@ def gen_directories(context):
     print(f"{Fore.BLUE}Generating a cache folder{Style.RESET_ALL}")
     os.makedirs(config_obj.get_complete_cache_path())
 
-    generate_grader_roster(course_id=context.config_obj.course_id, canvas_token=context.config_obj.api_token, grader_name=context.command_args_obj.grader_name, path=f"{context.config_obj.hellbender_lab_dir}{context.config_obj.class_code}/csv_rosters")
+    generate_grader_roster(course_id=context.config_obj.course_id, canvas_token=context.config_obj.api_token, grader_name=context.command_args_obj.grader_name, path=f"{context.config_obj.hellbender_lab_dir}{context.config_obj.class_code}/csv_rosters", roster_invalidation_days=config_obj.roster_invalidation_days)
 
     param_lab_dir = command_args_obj.lab_name + "_backup"
     param_lab_path = config_obj.get_complete_local_path() + "/" + param_lab_dir
@@ -142,7 +127,7 @@ def gen_directories(context):
     return param_lab_path
 
 
-def perform_backup(context, lab_path):
+def perform_backup(context, lab_path, submissions):
     # locate the directories for submissions dependent on grader
     # also find the pawprints list for the grader
     config_obj = context.config_obj
@@ -173,9 +158,9 @@ def perform_backup(context, lab_path):
             name = row['name']
             canvas_id = row['canvas_id']
             local_name_dir = lab_path + "/" + name
-
             if config_obj.check_attendance:
-                if not get_assignment_score(config_obj, canvas_id):
+                score = next((submission.score for submission in submissions if submission.user_id == canvas_id), None)
+                if score is not None and score == config_obj.attendance_assignment_point_criterion:                    
                     print(
                         f"{Fore.YELLOW}(WARNING): {name} was marked absent during the lab session and therefore does not have a valid submission.{Style.RESET_ALL}")
                     print(f"{Fore.YELLOW}(WARNING): Skipping compilation!{Style.RESET_ALL}")
@@ -376,8 +361,8 @@ def main(lab_name, grader):
     context = Context(config_obj, command_args_obj)
     lab_path = gen_directories(context)
     if config_obj.check_attendance:
-        submissions = generate_assignment_list(config_obj, command_args_obj)
-    perform_backup(context, lab_path)
+        submissions = get_attendance_submissions(config_obj, command_args_obj)
+    perform_backup(context, lab_path, submissions)
 
 
 if __name__ == "__main__":

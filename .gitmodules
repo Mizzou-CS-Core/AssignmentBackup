@@ -3,3 +3,6 @@
 	url = git@github.com:Mizzou-CS-Core/GenGraderTable.git
 	branch = main
 	
+[submodule "CompileAndRun"]
+	path = CompileAndRun
+	url = git@github.com:Mizzou-CS-Core/CompileAndRun.git
