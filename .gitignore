@@ -173,3 +173,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 cs2050_local_labs/*
+config.toml
