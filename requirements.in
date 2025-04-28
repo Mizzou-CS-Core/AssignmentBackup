@@ -1,0 +1,5 @@
+git+https://github.com/Mizzou-CS-Core/GenGraderTable.git#egg=gen_grader_table
+git+https://github.com/Mizzou-CS-Core/BuildAndRun.git#egg=build_and_run
+requests
+tomlkit
+colorama
