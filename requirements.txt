@@ -1,8 +1,9 @@
--e git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary@5a4b082f155ed200b375b3a72c6f10320c36873a#egg=CanvasRequestLibrary&subdirectory=../../../../GenGraderTable/CanvasRequestLibrary
+-e git+https://github.com/Mizzou-CS-Core/BuildAndRun.git@7b2ba88638d1ebc220105d179d7377f1aaeec301#egg=build_and_run
+-e git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git@6400affe4a2f52dbc68d68b4d201d73d4a4ddd0d#egg=canvas_lms_api
 certifi==2025.1.31
 charset-normalizer==3.4.1
 colorama==0.4.6
--e git+ssh://git@github.com/Mizzou-CS-Core/GenGraderTable.git@1e0cf653e1562ef9e48289030ceecb5eecd15c58#egg=GenGraderTable&subdirectory=../../GenGraderTable
+-e git+https://github.com/Mizzou-CS-Core/GenGraderTable.git@73dc787e6bd2ace0606afefe79a35aab49eca28c#egg=gen_grader_table
 idna==3.10
 requests==2.32.3
 tomlkit==0.13.2
