@@ -7,7 +7,9 @@
 build-and-run @ git+https://github.com/Mizzou-CS-Core/BuildAndRun.git
     # via -r requirements.in
 canvas-lms-api @ git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git
-    # via gen-grader-table
+    # via
+    #   -r requirements.in
+    #   gen-grader-table
 certifi==2025.1.31
     # via requests
 charset-normalizer==3.4.1
@@ -18,8 +20,14 @@ gen-grader-table @ git+https://github.com/Mizzou-CS-Core/GenGraderTable.git
     # via -r requirements.in
 idna==3.10
     # via requests
-requests==2.32.3
+mucs-database @ git+https://github.com/Mizzou-CS-Core/MUCSDao.git
     # via -r requirements.in
+peewee==3.18.1
+    # via mucs-database
+requests==2.32.3
+    # via
+    #   -r requirements.in
+    #   canvas-lms-api
 tomlkit==0.13.2
     # via -r requirements.in
 urllib3==2.4.0
