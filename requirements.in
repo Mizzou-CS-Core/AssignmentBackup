@@ -5,3 +5,4 @@ git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git#egg=canvas_lms_ap
 requests
 tomlkit
 colorama
+colorlog

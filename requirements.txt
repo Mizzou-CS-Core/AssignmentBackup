@@ -16,6 +16,8 @@ charset-normalizer==3.4.1
     # via requests
 colorama==0.4.6
     # via -r requirements.in
+colorlog==6.9.0
+    # via -r requirements.in
 gen-grader-table @ git+https://github.com/Mizzou-CS-Core/GenGraderTable.git
     # via -r requirements.in
 idna==3.10
