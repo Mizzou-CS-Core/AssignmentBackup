@@ -1,4 +1,4 @@
-git+https://github.com/Mizzou-CS-Core/GenGraderTable.git#egg=gen_grader_table
+git+https://github.com/Mizzou-CS-Core/GenGraderTable.git@sql_integration#egg=gen_grader_table
 git+https://github.com/Mizzou-CS-Core/BuildAndRun.git#egg=build_and_run
 git+https://github.com/Mizzou-CS-Core/MUCSDao.git#egg=mucs_database
 git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git#egg=canvas_lms_api

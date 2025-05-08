@@ -18,12 +18,14 @@ colorama==0.4.6
     # via -r requirements.in
 colorlog==6.9.0
     # via -r requirements.in
-gen-grader-table @ git+https://github.com/Mizzou-CS-Core/GenGraderTable.git
+gen-grader-table @ git+https://github.com/Mizzou-CS-Core/GenGraderTable.git@sql_integration
     # via -r requirements.in
 idna==3.10
     # via requests
 mucs-database @ git+https://github.com/Mizzou-CS-Core/MUCSDao.git
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   gen-grader-table
 peewee==3.18.1
     # via mucs-database
 requests==2.32.3
