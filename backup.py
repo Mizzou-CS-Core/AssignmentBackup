@@ -3,6 +3,10 @@ import shutil
 import sys
 import re
 import build_and_run
+import logging
+
+from colorlog import ColoredFormatter
+
 
 from colorama import Fore
 from colorama import Style
@@ -18,6 +22,33 @@ from assignment_backup.configuration.setup import prepare_toml_doc, load_config
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
+logger = logging.getLogger(__name__)
+
+def setup_logging():
+    # everything including debug goes to log file
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    fh = logging.FileHandler("backup.log", encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s"
+    ))
+    # log info and above to console
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    # this format string lets colorlog insert color around the whole line
+    fmt = "%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    colors = {
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bold_red',
+    }
+    ch.setFormatter(ColoredFormatter(fmt, log_colors=colors))
+    root.addHandler(fh)
+    root.addHandler(ch)
 
 # help
 def function_usage_help():
@@ -160,7 +191,7 @@ def perform_backup(context, lab_path, submissions):
 
 def main(lab_name, grader):
     if not os.path.exists(CONFIG_FILENAME):
-        print(f"{CONFIG_FILENAME} does not exist, creating a default one")
+        logger(f"{CONFIG_FILENAME} does not exist, creating a default one")
         prepare_toml_doc()
         print("You'll want to edit this with your correct information. Cancelling further program execution!")
         exit()
