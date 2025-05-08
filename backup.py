@@ -17,8 +17,7 @@ from pathlib import Path
 
 from gen_grader_table.grader_table import generate_grader_roster
 
-from assignment_backup.configuration.model import CommandArgs, Context
-from assignment_backup.configuration.setup import prepare_toml_doc, load_config
+from assignment_backup.configuration.setup import prepare_toml_doc, load_config, get_config
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
@@ -57,63 +56,63 @@ def function_usage_help():
 
 
 # Get list of assignments from Canvas and export to JSON file
-def get_attendance_submissions(config_obj, command_args_obj):
-    assignments = config_obj.api_client._assignments.get_assignments_from_course(course_id=config_obj.course_id, per_page=50)
-    attendance_name = config_obj.attendance_assignment_name_scheme + command_args_obj.lab_name[3:]
+def get_attendance_submissions(assignment_name: str = ""):
+    config = get_config()
+    assignments = config.api_client._assignments.get_assignments_from_course(course_id=config.course_id, per_page=50)
+    attendance_name = config.attendance_assignment_name_scheme + assignment_name[3:]
     assignment_id = next((assignment.id for assignment in assignments if assignment.name == attendance_name), None)
     if assignment_id is None:
         print(
             f"{Fore.RED}(ERROR) - Unable to find an assignment matching {attendance_name} from Canvas.{Style.RESET_ALL}")
         print(f"{Fore.RED}(ERROR) - Disabling attendance checking for this execution.{Style.RESET_ALL}")
-        config_obj.check_attendance = False
+        config.check_attendance = False
         return
-    return config_obj.api_client._assignments.get_submissions_from_assignment(course_id=config_obj.course_id, assignment_id=assignment_id, per_page=50)
+    return config.api_client._assignments.get_submissions_from_assignment(course_id=config.course_id, assignment_id=assignment_id, per_page=50)
 
 
 # Preamble function responsible for generating and prepping any necessary directories and files
-def gen_directories(context):
-    config_obj = context.config_obj
-    command_args_obj = context.command_args_obj
+def gen_directories(assignment_name="", grading_group_name=""):
+    config = get_config()
     # "preamble" code - generates the local directories
-    if not os.path.exists(config_obj.get_complete_local_path()):
+    if not os.path.exists(config.get_complete_local_path()):
         # create main lab dir
-        os.makedirs(config_obj.get_complete_local_path())
+        os.makedirs(config.get_complete_local_path())
         print(f"{Fore.BLUE}Creating main lab dir{Style.RESET_ALL}")
-    if os.path.exists(config_obj.get_complete_cache_path()):
+    if os.path.exists(config.get_complete_cache_path()):
         print(f"{Fore.BLUE}A cache folder for the program already exists. Clearing it and rebuilding{Style.RESET_ALL}")
-        shutil.rmtree(config_obj.get_complete_cache_path())
+        shutil.rmtree(config.get_complete_cache_path())
     print(f"{Fore.BLUE}Generating a cache folder{Style.RESET_ALL}")
-    os.makedirs(config_obj.get_complete_cache_path())
+    os.makedirs(config.get_complete_cache_path())
 
-    generate_grader_roster(course_id=context.config_obj.course_id, canvas_token=context.config_obj.api_token, grader_name=context.command_args_obj.grader_name, path=f"{context.config_obj.hellbender_lab_dir}{context.config_obj.class_code}/csv_rosters", roster_invalidation_days=config_obj.roster_invalidation_days)
+    generate_grader_roster(course_id=config.course_id, grader_name=grading_group_name,
+                           roster_invalidation_days=config.roster_invalidation_days)
 
-    param_lab_dir = command_args_obj.lab_name + "_backup"
-    param_lab_path = config_obj.get_complete_local_path() + "/" + param_lab_dir
+    param_lab_path = config.get_complete_local_path() / f"{assignment_name}_backup"
+
     # double check if the backup folder for the lab exists and if it does, just clear it out and regenerate
     # could also ask if the user is cool with this
     print(f"{Fore.BLUE}Checking path {param_lab_path}{Style.RESET_ALL}")
-    if os.path.exists(param_lab_path) and config_obj.clear_existing_backups:
+    if os.path.exists(param_lab_path) and config.clear_existing_backups:
         print(
-            f"{Fore.BLUE}A backup folder for {command_args_obj.lab_name} already exists. Clearing it and rebuilding{Style.RESET_ALL}")
+            f"{Fore.BLUE}A backup folder for {assignment_name} already exists. Clearing it and rebuilding{Style.RESET_ALL}")
         shutil.rmtree(param_lab_path)
-    print(f"{Fore.BLUE}Creating a backup folder for {command_args_obj.lab_name}{Style.RESET_ALL}")
+    print(f"{Fore.BLUE}Creating a backup folder for {assignment_name}{Style.RESET_ALL}")
     os.makedirs(param_lab_path)
     return param_lab_path
 
 
-def perform_backup(context, lab_path, submissions):
+def perform_backup(lab_path, submissions, assignment_name: str="", grading_group_name: str=""):
     # locate the directories for submissions dependent on grader
     # also find the pawprints list for the grader
-    config_obj = context.config_obj
-    command_args_obj = context.command_args_obj
-    grader_csv = config_obj.get_complete_hellbender_path() + "/csv_rosters/" + command_args_obj.grader_name + ".csv"
-    submissions_dir = config_obj.get_complete_hellbender_path() + "/submissions/" + command_args_obj.lab_name + "/" + command_args_obj.grader_name
+    config_obj = get_config()
+    grader_csv = config_obj.get_complete_hellbender_path() + "/csv_rosters/" + grading_group_name+ ".csv"
+    submissions_dir = config_obj.get_complete_hellbender_path() + "/submissions/" + assignment_name+ "/" + grading_group_name
 
     # if we're using headers, then we need to cache the necessary files
     if config_obj.use_header_files:
         # /.testfiles generally has what we're looking for
         print(f"{Fore.BLUE}Copying test files into cache{Style.RESET_ALL}")
-        lab_files_path = config_obj.get_complete_hellbender_path() + "/.testfiles/" + command_args_obj.lab_name + "_temp"
+        lab_files_path = config_obj.get_complete_hellbender_path() + "/.testfiles/" + assignment_name + "_temp"
         for filename in os.listdir(lab_files_path):
             qualified_filename = lab_files_path + "/" + filename
             if not os.path.isdir(qualified_filename):

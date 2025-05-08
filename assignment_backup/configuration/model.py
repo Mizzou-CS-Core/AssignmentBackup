@@ -30,8 +30,7 @@ class Config:
         self.attendance_assignment_name_scheme = attendance_assignment_name_scheme
         self.attendance_assignment_point_criterion = attendance_assignment_point_criterion
 
-        self.api_client = CanvasClient(token = api_token, url_base=api_prefix)
-
+        self.api_client = CanvasClient(token=api_token, url_base=api_prefix)
 
     def get_complete_hellbender_path(self):
         return self.hellbender_lab_dir + self.class_code
@@ -41,17 +40,3 @@ class Config:
 
     def get_complete_cache_path(self):
         return self.get_complete_local_path() + "/" + self.cache_dir
-
-
-class CommandArgs:
-    def __init__(self, lab_name, grader_name):
-        self.lab_name = lab_name
-        self.grader_name = grader_name
-
-
-class Context:
-    def __init__(self, config_obj, command_args_obj):
-        self.config_obj = config_obj
-        self.command_args_obj = command_args_obj
-
-
