@@ -13,8 +13,8 @@ from pathlib import Path
 
 from gen_grader_table.grader_table import generate_grader_roster
 
-from configuration.model import CommandArgs, Context
-from configuration.setup import prepare_toml_doc, load_config
+from assignment_backup.configuration.model import CommandArgs, Context
+from assignment_backup.configuration.setup import prepare_toml_doc, load_config
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
