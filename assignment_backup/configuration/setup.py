@@ -54,13 +54,15 @@ def prepare_toml_doc():
 
     # [paths] section
     paths = table()
+    paths.add(comment(" - Path to the SQLite3 DB instance of the MUCSv2 course instance"))
+    paths.add("sqlite_db_path", "data/{class_code}.db")
     paths.add(comment(" the local storage dir will have the class code preappended to it"))
     paths.add("local_storage_dir", "_local_labs")
-    paths.add(comment(" the hellbender lab dir will have the class code appended to it"))
-    paths.add(
-        comment(" e.g if your lab dir is \"/cluster/pixstor/class/\" and your class code is \"cs1050\", it'll be"))
-    paths.add(comment(" \"/cluster/pixstor/class/cs1050\""))
-    paths.add("hellbender_lab_dir", "/cluster/pixstor/class/")
+    # paths.add(comment(" the hellbender lab dir will have the class code appended to it"))
+    # paths.add(
+        # comment(" e.g if your lab dir is \"/cluster/pixstor/class/\" and your class code is \"cs1050\", it'll be"))
+    # paths.add(comment(" \"/cluster/pixstor/class/cs1050\""))
+    # paths.add("hellbender_lab_dir", "/cluster/pixstor/class/")
     paths.add(comment(" created in the local storage dir"))
     paths.add("cache_dir", "cache")
     doc["paths"] = paths
@@ -118,25 +120,21 @@ def load_config():
     paths = doc.get('paths', {})
     canvas = doc.get('canvas', {})
 
-    config_obj = Config(
-        class_code=general.get('class_code', ""),
-        execution_timeout=general.get('execution_timeout', -1),
-        roster_invalidation_days=general.get('roster_invalidation_days', -1),
-        use_header_files=general.get('use_header_files', True),
-        use_makefile=general.get('use_makefile', True),
-        compile_submissions=general.get('compile_submissions', True),
-        execute_submissions=general.get('execute_submissions', True),
-        generate_valgrind_output=general.get('generate_valgrind_output', True),
-        clear_existing_backups=general.get('clear_existing_backups', True),
-        input_string=general.get("input_string", ""),
-        check_attendance=general.get("check_attendance", False),
-        local_storage_dir=paths.get('local_storage_dir', ""),
-        hellbender_lab_dir=paths.get('hellbender_lab_dir', ""),
-        cache_dir=paths.get('cache_dir', "cache"),
-        api_prefix=canvas.get('api_prefix', ""),
-        api_token=canvas.get('api_token', ""),
-        course_id=canvas.get('course_id', -1),
-        attendance_assignment_name_scheme=canvas.get('attendance_assignment_name_scheme', ""),
-        attendance_assignment_point_criterion=canvas.get("attendance_assignment_point_criterion", 1)
-    )
+    config_obj = Config(class_code=general.get('class_code', ""),
+                        execution_timeout=general.get('execution_timeout', -1),
+                        roster_invalidation_days=general.get('roster_invalidation_days', -1),
+                        use_header_files=general.get('use_header_files', True),
+                        use_makefile=general.get('use_makefile', True),
+                        compile_submissions=general.get('compile_submissions', True),
+                        execute_submissions=general.get('execute_submissions', True),
+                        generate_valgrind_output=general.get('generate_valgrind_output', True),
+                        clear_existing_backups=general.get('clear_existing_backups', True),
+                        input_string=general.get("input_string", ""),
+                        check_attendance=general.get("check_attendance", False),
+                        local_storage_dir=paths.get('local_storage_dir', ""),
+                        sqlite_db=paths.get('sqlite_db_path', ""),
+                        cache_dir=paths.get('cache_dir', "cache"), api_prefix=canvas.get('api_prefix', ""),
+                        api_token=canvas.get('api_token', ""), course_id=canvas.get('course_id', -1),
+                        attendance_assignment_name_scheme=canvas.get('attendance_assignment_name_scheme', ""),
+                        attendance_assignment_point_criterion=canvas.get("attendance_assignment_point_criterion", 1))
     _config = config_obj
