@@ -68,7 +68,7 @@ def function_usage_help():
 
 
 # Get list of assignments from Canvas and export to JSON file
-def get_attendance_submissions(assignment_name: str = "") -> list:
+def get_attendance_submissions(assignment: Assignment=None, grading_group:GradingGroup=None) -> list:
     config = get_config()
     assignments = get_client().assignments.get_assignments_from_course(course_id=get_config().course_id, per_page=50)
 
@@ -110,20 +110,27 @@ def gen_directories(assignment_name="", grading_group_name=""):
     return param_lab_path
 
 
-def perform_backup(lab_path, submissions, assignment_name: str = "", grading_group_name: str = ""):
-    # locate the directories for submissions dependent on grader
-    # also find the pawprints list for the grader
+def perform_backup(assignment_name: str = "", grading_group_name: str = "", attendance_results=None):
+    if attendance_results is None:
+        attendance_results = dict()
     config_obj = get_config()
 
-    assignment: Assignment = dao_assignments.get_assignment_by_name(name=assignment_name)
+
     # if we're using headers, then we need to cache the necessary files
     logger.debug(f"Use header files: {config_obj.use_header_files}")
     if config_obj.use_header_files:
         logger.info(f"Copying test files into cache at {config_obj.get_complete_cache_path()}")
         test_files_path = Path(assignment.test_file_directory_path)
+        logger.debug(f"Assignment test files: {assignment.test_file_directory_path}")
         for filename in test_files_path.iterdir():
             if filename.is_file():
+                logger.debug(f"Copying {filename} into {config_obj.get_complete_cache_path()}")
                 shutil.copy(filename, config_obj.get_complete_cache_path())
+    submissions: list[Submission] = dao_grading_groups.get_latest_submissions_from_group(assignment_id=assignment.canvas_id,
+                                                                                         grading_group_id=grading_group.canvas_id)
+
+
+
 
     with open(grader_csv, "r", newline="") as pawprints_list:
         next(pawprints_list)
@@ -216,6 +223,8 @@ def main(lab_name, grader):
     # prepare initial command arguments
 
     lab_path = gen_directories()
+    assignment: Assignment = dao_assignments.get_assignment_by_name(name=lab_name)
+    grading_group: GradingGroup = dao_grading_groups.get_grading_group_by_name(grading_group_name=grader)
     if get_config().check_attendance:
         submissions = get_attendance_submissions()
     perform_backup(lab_path, submissions)
