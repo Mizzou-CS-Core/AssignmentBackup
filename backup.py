@@ -24,10 +24,12 @@ from mucs_database.init import initialize_database
 import mucs_database.assignment.accessors as dao_assignments
 import mucs_database.grading_group.accessors as dao_grading_groups
 
+from canvas_lms_api.models.submission import Submission as api_Submission
+
 from mucs_database.assignment.model import Assignment
 from mucs_database.grading_group.model import GradingGroup
 from mucs_database.person.model import Person
-
+from mucs_database.submission.model import Submission
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
@@ -67,19 +69,30 @@ def function_usage_help():
     exit()
 
 
-# Get list of assignments from Canvas and export to JSON file
-def get_attendance_submissions(assignment: Assignment=None, grading_group:GradingGroup=None) -> list:
+def get_attendance_submissions(original_assignment: Assignment = None) -> dict:
+    """
+    Queries Canvas for a matching "attendance" assignment, and then generates a dictionary of each person's submission.
+    This dictionary is not exclusive to a specific grading group.
+    :param original_assignment: The DAO Model of the Assignment being backed up for
+    :return: a dict with keys corresponding to "login_id" (aka canvas_id) and values of score.
+    """
     config = get_config()
     assignments = get_client().assignments.get_assignments_from_course(course_id=get_config().course_id, per_page=50)
 
-    attendance_name = config.attendance_assignment_name_scheme + assignment_name[3:]
+    attendance_name = config.attendance_assignment_name_scheme + original_assignment.mucsv2_name[3:]
     assignment_id = next((assignment.id for assignment in assignments if assignment.name == attendance_name), None)
     if assignment_id is None:
         logger.warning(f"Unable to find an assignment matching {attendance_name} from Canvas.")
         config.check_attendance = False
         return
-    return get_client().assignments.get_submissions_from_assignment(course_id=config.course_id,
-                                                                    assignment_id=assignment_id, per_page=50)
+    attendance_submissions: list[api_Submission] = get_client().assignments.get_submissions_from_assignment(
+        course_id=config.course_id,
+        assignment_id=assignment_id,
+        per_page=50)
+    attendance_dict = {}
+    for submission in attendance_submissions:
+        attendance_dict[submission.user_id] = submission.score
+    return attendance_submissions
 
 
 # Preamble function responsible for generating and prepping any necessary directories and files
