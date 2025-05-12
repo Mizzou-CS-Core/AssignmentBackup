@@ -7,7 +7,6 @@ import logging
 
 from colorlog import ColoredFormatter
 
-
 from colorama import Fore
 from colorama import Style
 
@@ -21,9 +20,19 @@ from assignment_backup.configuration.setup import prepare_toml_doc, load_config,
 from canvas_lms_api import init as initialize_canvas_client
 from canvas_lms_api import get_client
 
+from mucs_database.init import initialize_database
+import mucs_database.assignment.accessors as dao_assignments
+import mucs_database.grading_group.accessors as dao_grading_groups
+
+from mucs_database.assignment.model import Assignment
+from mucs_database.grading_group.model import GradingGroup
+from mucs_database.person.model import Person
+
+
 CONFIG_FILENAME = "assignment_backup.toml"
 
 logger = logging.getLogger(__name__)
+
 
 def setup_logging():
     # everything including debug goes to log file
@@ -51,6 +60,7 @@ def setup_logging():
     root.addHandler(fh)
     root.addHandler(ch)
 
+
 # help
 def function_usage_help():
     print("Usage: python3 backup.py {lab_name} {TA name}")
@@ -58,7 +68,7 @@ def function_usage_help():
 
 
 # Get list of assignments from Canvas and export to JSON file
-def get_attendance_submissions(assignment_name: str = ""):
+def get_attendance_submissions(assignment_name: str = "") -> list:
     config = get_config()
     assignments = get_client().assignments.get_assignments_from_course(course_id=get_config().course_id, per_page=50)
 
@@ -68,7 +78,8 @@ def get_attendance_submissions(assignment_name: str = ""):
         logger.warning(f"Unable to find an assignment matching {attendance_name} from Canvas.")
         config.check_attendance = False
         return
-    return get_client().assignments.get_submissions_from_assignment(course_id=config.course_id, assignment_id=assignment_id, per_page=50)
+    return get_client().assignments.get_submissions_from_assignment(course_id=config.course_id,
+                                                                    assignment_id=assignment_id, per_page=50)
 
 
 # Preamble function responsible for generating and prepping any necessary directories and files
@@ -91,7 +102,6 @@ def gen_directories(assignment_name="", grading_group_name=""):
 
     param_lab_path = config.get_complete_local_path() / f"{assignment_name}_backup"
 
-
     if param_lab_path.exists() and config.clear_existing_backups:
         logger.info(f"A backup folder at {param_lab_path} already exists. Clearing it and rebuilding!")
         shutil.rmtree(param_lab_path)
@@ -100,22 +110,20 @@ def gen_directories(assignment_name="", grading_group_name=""):
     return param_lab_path
 
 
-def perform_backup(lab_path, submissions, assignment_name: str="", grading_group_name: str=""):
+def perform_backup(lab_path, submissions, assignment_name: str = "", grading_group_name: str = ""):
     # locate the directories for submissions dependent on grader
     # also find the pawprints list for the grader
     config_obj = get_config()
-    grader_csv = config_obj.get_complete_hellbender_path() + "/csv_rosters/" + grading_group_name+ ".csv"
-    submissions_dir = config_obj.get_complete_hellbender_path() + "/submissions/" + assignment_name+ "/" + grading_group_name
 
+    assignment: Assignment = dao_assignments.get_assignment_by_name(name=assignment_name)
     # if we're using headers, then we need to cache the necessary files
+    logger.debug(f"Use header files: {config_obj.use_header_files}")
     if config_obj.use_header_files:
-        # /.testfiles generally has what we're looking for
-        print(f"{Fore.BLUE}Copying test files into cache{Style.RESET_ALL}")
-        lab_files_path = config_obj.get_complete_hellbender_path() + "/.testfiles/" + assignment_name + "_temp"
-        for filename in os.listdir(lab_files_path):
-            qualified_filename = lab_files_path + "/" + filename
-            if not os.path.isdir(qualified_filename):
-                shutil.copy(qualified_filename, config_obj.get_complete_cache_path())
+        logger.info(f"Copying test files into cache at {config_obj.get_complete_cache_path()}")
+        test_files_path = Path(assignment.test_file_directory_path)
+        for filename in test_files_path.iterdir():
+            if filename.is_file():
+                shutil.copy(filename, config_obj.get_complete_cache_path())
 
     with open(grader_csv, "r", newline="") as pawprints_list:
         next(pawprints_list)
