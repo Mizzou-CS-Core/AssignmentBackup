@@ -18,6 +18,8 @@ from pathlib import Path
 from gen_grader_table.grader_table import generate_grader_roster
 
 from assignment_backup.configuration.setup import prepare_toml_doc, load_config, get_config
+from canvas_lms_api import init as initialize_canvas_client
+from canvas_lms_api import get_client
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
@@ -58,16 +60,15 @@ def function_usage_help():
 # Get list of assignments from Canvas and export to JSON file
 def get_attendance_submissions(assignment_name: str = ""):
     config = get_config()
-    assignments = config.api_client._assignments.get_assignments_from_course(course_id=config.course_id, per_page=50)
+    assignments = get_client().assignments.get_assignments_from_course(course_id=get_config().course_id, per_page=50)
+
     attendance_name = config.attendance_assignment_name_scheme + assignment_name[3:]
     assignment_id = next((assignment.id for assignment in assignments if assignment.name == attendance_name), None)
     if assignment_id is None:
-        print(
-            f"{Fore.RED}(ERROR) - Unable to find an assignment matching {attendance_name} from Canvas.{Style.RESET_ALL}")
-        print(f"{Fore.RED}(ERROR) - Disabling attendance checking for this execution.{Style.RESET_ALL}")
+        logger.warning(f"Unable to find an assignment matching {attendance_name} from Canvas.")
         config.check_attendance = False
         return
-    return config.api_client._assignments.get_submissions_from_assignment(course_id=config.course_id, assignment_id=assignment_id, per_page=50)
+    return get_client().assignments.get_submissions_from_assignment(course_id=config.course_id, assignment_id=assignment_id, per_page=50)
 
 
 # Preamble function responsible for generating and prepping any necessary directories and files
@@ -196,20 +197,24 @@ def main(lab_name, grader):
         exit()
     config_obj = load_config()
 
+    load_config()
+    config = get_config()
+    initialize_canvas_client(url_base=config.api_prefix, token=config.api_token)
     # grab command params, and sanitize them
-    re.sub(r'\W+', '', lab_name)
+    re.sub(r"\W+", '', lab_name)
     if lab_name == "help" or not sys.argv[1] or not sys.argv[2]:
         function_usage_help()
     re.sub(r'\W+', '', grader)
 
-    # prepare initial command arguments
-    command_args_obj = CommandArgs(lab_name, grader)
 
-    context = Context(config_obj, command_args_obj)
-    lab_path = gen_directories(context)
-    if config_obj.check_attendance:
-        submissions = get_attendance_submissions(config_obj, command_args_obj)
-    perform_backup(context, lab_path, submissions)
+
+
+    # prepare initial command arguments
+
+    lab_path = gen_directories()
+    if get_config().check_attendance:
+        submissions = get_attendance_submissions()
+    perform_backup(lab_path, submissions)
 
 
 if __name__ == "__main__":

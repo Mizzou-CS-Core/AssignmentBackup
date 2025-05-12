@@ -30,8 +30,6 @@ class Config:
         self.attendance_assignment_name_scheme = attendance_assignment_name_scheme
         self.attendance_assignment_point_criterion = attendance_assignment_point_criterion
 
-        self.api_client = CanvasClient(token=api_token, url_base=api_prefix)
-
     def get_complete_hellbender_path(self):
         return self.hellbender_lab_dir + self.class_code
 
