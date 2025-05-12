@@ -75,30 +75,28 @@ def get_attendance_submissions(assignment_name: str = ""):
 def gen_directories(assignment_name="", grading_group_name=""):
     config = get_config()
     # "preamble" code - generates the local directories
-    if not os.path.exists(config.get_complete_local_path()):
+
+    if not config.get_complete_local_path().exists():
         # create main lab dir
-        os.makedirs(config.get_complete_local_path())
-        print(f"{Fore.BLUE}Creating main lab dir{Style.RESET_ALL}")
-    if os.path.exists(config.get_complete_cache_path()):
-        print(f"{Fore.BLUE}A cache folder for the program already exists. Clearing it and rebuilding{Style.RESET_ALL}")
+        config.get_complete_local_path().mkdir()
+        logger.info(f"Creating local backup directory {config.get_complete_local_path()}")
+    if config.get_complete_cache_path().exists():
+        logger.info(f"A cache folder at {config.get_complete_cache_path()} already exists. Clearing it and rebuilding.")
         shutil.rmtree(config.get_complete_cache_path())
-    print(f"{Fore.BLUE}Generating a cache folder{Style.RESET_ALL}")
-    os.makedirs(config.get_complete_cache_path())
+    logger.info(f"Generating a cache folder at {config.get_complete_cache_path()}")
+    config.get_complete_cache_path().mkdir()
 
     generate_grader_roster(course_id=config.course_id, grader_name=grading_group_name,
                            roster_invalidation_days=config.roster_invalidation_days)
 
     param_lab_path = config.get_complete_local_path() / f"{assignment_name}_backup"
 
-    # double check if the backup folder for the lab exists and if it does, just clear it out and regenerate
-    # could also ask if the user is cool with this
-    print(f"{Fore.BLUE}Checking path {param_lab_path}{Style.RESET_ALL}")
-    if os.path.exists(param_lab_path) and config.clear_existing_backups:
-        print(
-            f"{Fore.BLUE}A backup folder for {assignment_name} already exists. Clearing it and rebuilding{Style.RESET_ALL}")
+
+    if param_lab_path.exists() and config.clear_existing_backups:
+        logger.info(f"A backup folder at {param_lab_path} already exists. Clearing it and rebuilding!")
         shutil.rmtree(param_lab_path)
-    print(f"{Fore.BLUE}Creating a backup folder for {assignment_name}{Style.RESET_ALL}")
-    os.makedirs(param_lab_path)
+    logger.info(f"Creating a backup folder at {param_lab_path}")
+    param_lab_path.mkdir()
     return param_lab_path
 
 
@@ -195,8 +193,6 @@ def main(lab_name, grader):
         prepare_toml_doc()
         print("You'll want to edit this with your correct information. Cancelling further program execution!")
         exit()
-    config_obj = load_config()
-
     load_config()
     config = get_config()
     initialize_canvas_client(url_base=config.api_prefix, token=config.api_token)

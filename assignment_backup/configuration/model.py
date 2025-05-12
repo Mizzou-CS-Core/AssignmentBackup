@@ -1,5 +1,5 @@
 from canvas_lms_api import CanvasClient
-
+from pathlib import Path
 
 class Config:
     def __init__(self, class_code, execution_timeout, roster_invalidation_days, use_header_files, use_makefile,
@@ -20,9 +20,9 @@ class Config:
         self.input_string = input_string
         self.check_attendance = check_attendance
         # paths
-        self.local_storage_dir = local_storage_dir
+        self.local_storage_dir = Path(local_storage_dir)
         self.hellbender_lab_dir = hellbender_lab_dir
-        self.cache_dir = cache_dir
+        self.cache_dir = Path(cache_dir)
         # canvas/home/mm7f5/MUCSv2/AssignmentBackup/configuration/model.py
         self.course_id = course_id
         self.api_token = api_token
@@ -33,8 +33,8 @@ class Config:
     def get_complete_hellbender_path(self):
         return self.hellbender_lab_dir + self.class_code
 
-    def get_complete_local_path(self):
-        return self.class_code + self.local_storage_dir
+    def get_complete_local_path(self) -> Path:
+        return self.class_code / self.local_storage_dir
 
-    def get_complete_cache_path(self):
-        return self.get_complete_local_path() + "/" + self.cache_dir
+    def get_complete_cache_path(self) -> Path:
+        return self.get_complete_local_path() / self.cache_dir
