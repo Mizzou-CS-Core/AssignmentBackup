@@ -123,12 +123,11 @@ def gen_directories(assignment_name="", grading_group_name=""):
     return param_lab_path
 
 
-def perform_backup(assignment_name: str = "", grading_group_name: str = "", attendance_results=None):
+def perform_backup(attendance_results=None, assignment:Assignment=None, grading_group:GradingGroup=None):
     if attendance_results is None:
         attendance_results = dict()
     config_obj = get_config()
-
-
+    local_assignment_dir = config_obj.get_complete_local_path() / f"{assignment.mucsv2_name}_backup"
     # if we're using headers, then we need to cache the necessary files
     logger.debug(f"Use header files: {config_obj.use_header_files}")
     if config_obj.use_header_files:
@@ -139,50 +138,16 @@ def perform_backup(assignment_name: str = "", grading_group_name: str = "", atte
             if filename.is_file():
                 logger.debug(f"Copying {filename} into {config_obj.get_complete_cache_path()}")
                 shutil.copy(filename, config_obj.get_complete_cache_path())
-    submissions: list[Submission] = dao_grading_groups.get_latest_submissions_from_group(assignment_id=assignment.canvas_id,
-                                                                                         grading_group_id=grading_group.canvas_id)
+    submissions: list[Submission] = dao_grading_groups.get_latest_submissions_from_group(
+        assignment_id=assignment.canvas_id,
+        grading_group_id=grading_group.canvas_id)
+    for submission in submissions:
+        local_student_dir = local_assignment_dir / f"{submission.person.sortable_name}"
 
 
 
 
-    with open(grader_csv, "r", newline="") as pawprints_list:
-        next(pawprints_list)
-        fieldnames = ['pawprint', 'canvas_id', 'name', 'date']
-        csvreader = DictReader(pawprints_list, fieldnames=fieldnames)
-        # for each name, we need to check if there's a valid submission
-        for row in csvreader:
-            # sanitize pawprint for best results
-            pawprint = row['pawprint']
-            pawprint = re.sub(r'\W+', '', pawprint)
-            pawprint = pawprint.replace("\n", "")
-            name = row['name']
-            canvas_id = row['canvas_id']
-            local_name_dir = lab_path + "/" + name
-            if config_obj.check_attendance:
-                score = next((submission.score for submission in submissions if submission.user_id == canvas_id), None)
-                if score is not None and score == config_obj.attendance_assignment_point_criterion:                    
-                    print(
-                        f"{Fore.YELLOW}(WARNING): {name} was marked absent during the lab session and therefore does not have a valid submission.{Style.RESET_ALL}")
-                    print(f"{Fore.YELLOW}(WARNING): Skipping compilation!{Style.RESET_ALL}")
-                    continue
-            pawprint_dir = submissions_dir + "/" + pawprint
-            if not config_obj.clear_existing_backups:
-                print(local_name_dir)
-                if os.path.exists(local_name_dir) and not os.path.exists(local_name_dir + "/output.log"):
-                    print("Student " + pawprint + " already has a non-empty log, skipping")
-                    continue
-                else:
-                    print("Rebuilding student " + name + " directory")
-                    shutil.rmtree(local_name_dir)
 
-            if not os.path.exists(pawprint_dir):
-                print(f"{Fore.YELLOW}(WARNING) - Student {name} does not have a valid submission.{Style.RESET_ALL}")
-                continue
-                # if there is a submission, copy it over to the local directory
-            else:
-                os.makedirs(local_name_dir)
-                for filename in os.listdir(pawprint_dir):
-                    shutil.copy(pawprint_dir + "/" + filename, local_name_dir)
 
                     # grab cache results
                     for x in os.listdir(config_obj.get_complete_cache_path()):
@@ -238,9 +203,10 @@ def main(lab_name, grader):
     lab_path = gen_directories()
     assignment: Assignment = dao_assignments.get_assignment_by_name(name=lab_name)
     grading_group: GradingGroup = dao_grading_groups.get_grading_group_by_name(grading_group_name=grader)
+    attendance_results = None
     if get_config().check_attendance:
-        submissions = get_attendance_submissions()
-    perform_backup(lab_path, submissions)
+        attendance_results = get_attendance_submissions(assignment)
+    perform_backup(assignment=assignment, grading_group=grading_group, attendance_results=attendance_results)
 
 
 if __name__ == "__main__":
