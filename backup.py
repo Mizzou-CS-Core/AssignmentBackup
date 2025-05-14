@@ -6,7 +6,7 @@ import build_and_run
 import logging
 
 from colorlog import ColoredFormatter
-
+from subprocess import TimeoutExpired
 from colorama import Fore
 from colorama import Style
 
@@ -123,6 +123,29 @@ def gen_directories(assignment_name="", grading_group_name=""):
     return param_lab_path
 
 
+def prepare_c_program(assignment: Assignment, submission: Submission, program_path: Path):
+    config_obj = get_config()
+    if not config_obj.compile_submissions:
+        logger.debug("Submission compliation is disabled for this run.")
+        return
+    logger.info(f"Compiling {submission.person.name}'s assignment.")
+    if config_obj.use_makefile and len([file for file in program_path.iterdir() if file.name == "Makefile"]) == 0:
+        logger.warning("Makefile usage is enabled for this run, but there is no Makefile in the program path.")
+    build_and_run.compile(str(program_path), assignment.mucsv2_name, use_makefile=config_obj.use_makefile)
+    if not config_obj.execute_submissions:
+        logger.debug("Submission execution is disabled for this run.")
+        return
+    try:
+        logger.info(f"Executing {submission.person.name}'s assignment.")
+        build_and_run.run_executable(path=str(program_path), execution_timeout=config_obj.execution_timeout, input=config_obj.input_string)
+    except TimeoutExpired:
+        logger.warning(f"{submission.person.name}'s assignment took too long to run.")
+        logger.debug(f"Assignment exceeded timeout={config_obj.execution_timeout}")
+    except FileNotFoundError:
+        logger.error(f"{submission.person.name}'s assignment didn't produce an executable.")
+
+
+
 def perform_backup(attendance_results=None, assignment: Assignment = None, grading_group: GradingGroup = None,
                    local_assignment_path=None):
     if attendance_results is None:
@@ -142,6 +165,8 @@ def perform_backup(attendance_results=None, assignment: Assignment = None, gradi
         assignment_id=assignment.canvas_id,
         grading_group_id=grading_group.canvas_id)
     for submission in submissions:
+        if not submission.is_valid:
+            logger.warning(f"{submission.person.name} does not have a valid submission.")
         if config_obj.check_attendance:
             score = attendance_results[submission.person.canvas_id]
             if score is None or score < config_obj.attendance_assignment_point_criterion:
@@ -158,6 +183,8 @@ def perform_backup(attendance_results=None, assignment: Assignment = None, gradi
         # we will be nice and check the contents
         if not config_obj.use_header_files and len(Path(assignment.test_file_directory_path).iterdir()) > 0:
             logger.warning(f"The backup run is not using header files, but the test file directory for {assignment.mucsv2_name} has files in it.")
+        if assignment.assignment_type == "c":
+            prepare_c_program(assignment, submission, program_path=local_student_dir)
 
 
 
@@ -168,21 +195,19 @@ def perform_backup(attendance_results=None, assignment: Assignment = None, gradi
 
 def main(lab_name, grader):
     if not os.path.exists(CONFIG_FILENAME):
-        logger(f"{CONFIG_FILENAME} does not exist, creating a default one")
+        logger.error(f"{CONFIG_FILENAME} does not exist, creating a default one")
         prepare_toml_doc()
-        print("You'll want to edit this with your correct information. Cancelling further program execution!")
+        logger.critical("You'll want to edit this with your correct information. Cancelling further program execution!")
         exit()
     load_config()
     config = get_config()
     initialize_canvas_client(url_base=config.api_prefix, token=config.api_token)
+    initialize_database(sqlite_db_path=config.sqlite_db_path, mucsv2_instance_code=config.class_code)
     # grab command params, and sanitize them
     re.sub(r"\W+", '', lab_name)
     if lab_name == "help" or not sys.argv[1] or not sys.argv[2]:
         function_usage_help()
     re.sub(r'\W+', '', grader)
-
-
-
 
     # prepare initial command arguments
 
@@ -192,7 +217,8 @@ def main(lab_name, grader):
     attendance_results = None
     if get_config().check_attendance:
         attendance_results = get_attendance_submissions(assignment)
-    perform_backup(assignment=assignment, grading_group=grading_group, attendance_results=attendance_results)
+    perform_backup(attendance_results=attendance_results, assignment=assignment, grading_group=grading_group,
+                   local_assignment_path=lab_path)
 
 
 if __name__ == "__main__":
