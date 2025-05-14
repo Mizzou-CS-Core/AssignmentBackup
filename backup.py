@@ -1,35 +1,25 @@
+import logging
 import os
+import re
 import shutil
 import sys
-import re
-import build_and_run
-import logging
-
-from colorlog import ColoredFormatter
-from subprocess import TimeoutExpired
-from colorama import Fore
-from colorama import Style
-
-from subprocess import TimeoutExpired
-from csv import DictReader
 from pathlib import Path
+from subprocess import TimeoutExpired
 
-from gen_grader_table.grader_table import generate_grader_roster
-
-from assignment_backup.configuration.setup import prepare_toml_doc, load_config, get_config
-from canvas_lms_api import init as initialize_canvas_client
-from canvas_lms_api import get_client
-
-from mucs_database.init import initialize_database
+import build_and_run
 import mucs_database.assignment.accessors as dao_assignments
 import mucs_database.grading_group.accessors as dao_grading_groups
-
+from canvas_lms_api import get_client
+from canvas_lms_api import init as initialize_canvas_client
 from canvas_lms_api.models.submission import Submission as api_Submission
-
+from colorlog import ColoredFormatter
+from gen_grader_table.grader_table import generate_grader_roster
 from mucs_database.assignment.model import Assignment
 from mucs_database.grading_group.model import GradingGroup
-from mucs_database.person.model import Person
+from mucs_database.init import initialize_database
 from mucs_database.submission.model import Submission
+
+from assignment_backup.configuration.setup import prepare_toml_doc, load_config, get_config
 
 CONFIG_FILENAME = "assignment_backup.toml"
 
@@ -137,13 +127,13 @@ def prepare_c_program(assignment: Assignment, submission: Submission, program_pa
         return
     try:
         logger.info(f"Executing {submission.person.name}'s assignment.")
-        build_and_run.run_executable(path=str(program_path), execution_timeout=config_obj.execution_timeout, input=config_obj.input_string)
+        build_and_run.run_executable(path=str(program_path), execution_timeout=config_obj.execution_timeout,
+                                     input=config_obj.input_string)
     except TimeoutExpired:
         logger.warning(f"{submission.person.name}'s assignment took too long to run.")
         logger.debug(f"Assignment exceeded timeout={config_obj.execution_timeout}")
     except FileNotFoundError:
         logger.error(f"{submission.person.name}'s assignment didn't produce an executable.")
-
 
 
 def perform_backup(attendance_results=None, assignment: Assignment = None, grading_group: GradingGroup = None,
@@ -182,15 +172,11 @@ def perform_backup(attendance_results=None, assignment: Assignment = None, gradi
                     shutil.copy(file, local_student_dir)
         # we will be nice and check the contents
         if not config_obj.use_header_files and len(Path(assignment.test_file_directory_path).iterdir()) > 0:
-            logger.warning(f"The backup run is not using header files, but the test file directory for {assignment.mucsv2_name} has files in it.")
+            logger.warning(
+                f"The backup run is not using header files, "
+                f"but the test file directory for {assignment.mucsv2_name} has files in it.")
         if assignment.assignment_type == "c":
             prepare_c_program(assignment, submission, program_path=local_student_dir)
-
-
-
-
-
-
 
 
 def main(lab_name, grader):

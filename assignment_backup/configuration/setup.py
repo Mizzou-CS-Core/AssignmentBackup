@@ -2,11 +2,12 @@ import tomlkit
 import logging
 from tomlkit import document, table, comment, dumps
 
-from backup import CONFIG_FILENAME
 from assignment_backup.configuration.model import Config
 
 _config: Config = None
 logger = logging.getLogger(__name__)
+
+CONFIG_FILENAME = "assignment_backup.toml"
 
 
 def prepare_toml_doc():
