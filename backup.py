@@ -123,61 +123,47 @@ def gen_directories(assignment_name="", grading_group_name=""):
     return param_lab_path
 
 
-def perform_backup(attendance_results=None, assignment:Assignment=None, grading_group:GradingGroup=None):
+def perform_backup(attendance_results=None, assignment: Assignment = None, grading_group: GradingGroup = None,
+                   local_assignment_path=None):
     if attendance_results is None:
         attendance_results = dict()
     config_obj = get_config()
-    local_assignment_dir = config_obj.get_complete_local_path() / f"{assignment.mucsv2_name}_backup"
     # if we're using headers, then we need to cache the necessary files
     logger.debug(f"Use header files: {config_obj.use_header_files}")
-    if config_obj.use_header_files:
-        logger.info(f"Copying test files into cache at {config_obj.get_complete_cache_path()}")
-        test_files_path = Path(assignment.test_file_directory_path)
-        logger.debug(f"Assignment test files: {assignment.test_file_directory_path}")
-        for filename in test_files_path.iterdir():
-            if filename.is_file():
-                logger.debug(f"Copying {filename} into {config_obj.get_complete_cache_path()}")
-                shutil.copy(filename, config_obj.get_complete_cache_path())
+    # if config_obj.use_header_files:
+    #     logger.info(f"Copying test files into cache at {config_obj.get_complete_cache_path()}")
+    #     test_files_path = Path(assignment.test_file_directory_path)
+    #     logger.debug(f"Assignment test files: {assignment.test_file_directory_path}")
+    #     for filename in test_files_path.iterdir():
+    #         if filename.is_file():
+    #             logger.debug(f"Copying {filename} into {config_obj.get_complete_cache_path()}")
+    #             shutil.copy(filename, config_obj.get_complete_cache_path())
     submissions: list[Submission] = dao_grading_groups.get_latest_submissions_from_group(
         assignment_id=assignment.canvas_id,
         grading_group_id=grading_group.canvas_id)
     for submission in submissions:
-        local_student_dir = local_assignment_dir / f"{submission.person.sortable_name}"
+        if config_obj.check_attendance:
+            score = attendance_results[submission.person.canvas_id]
+            if score is None or score < config_obj.attendance_assignment_point_criterion:
+                logger.warning(f"{submission.person.name} is marked absent for the assignment.")
+                continue
+
+        local_student_dir = local_assignment_path / f"{submission.person.sortable_name}"
+        local_student_dir.mkdir()
+        # copy test files if needed
+        if config_obj.use_header_files:
+            for file in Path(assignment.test_file_directory_path).iterdir():
+                if file.is_file():
+                    shutil.copy(file, local_student_dir)
+        # we will be nice and check the contents
+        if not config_obj.use_header_files and len(Path(assignment.test_file_directory_path).iterdir()) > 0:
+            logger.warning(f"The backup run is not using header files, but the test file directory for {assignment.mucsv2_name} has files in it.")
 
 
 
 
 
 
-                    # grab cache results
-                    for x in os.listdir(config_obj.get_complete_cache_path()):
-                        try:
-                            shutil.copy(config_obj.get_complete_cache_path() + "/" + x, local_name_dir)
-
-                        except PermissionError:
-                            print(
-                                f"{Fore.RED}(ERROR) - Unable to copy cached files into student {name}'s directory.{Style.RESET_ALL}")
-                            print(
-                                f"{Fore.RED}(ERROR) - This can happen if a student turned in a file that has an identical name (including the extension){Style.RESET_ALL}")
-                            continue
-                    # if it's a c file, let's try to compile it and write the output to a file
-                    if ".c" in filename and config_obj.compile_submissions:
-                        print(f"{Fore.BLUE}Compiling student {name}'s lab{Style.RESET_ALL}")
-                        if config_obj.use_makefile:
-                            build_and_run.compile(compilable_code_path=local_name_dir, filename=filename, use_makefile=True)
-                        else:
-                            compilable_lab = local_name_dir + "/" + filename
-                            build_and_run.compile(compilable_code_path=compilable_lab, filename=filename, use_makefile=False)
-                        if config_obj.execute_submissions:
-                            try:
-                                print(f"{Fore.BLUE}Executing student {name}'s lab{Style.RESET_ALL}")
-                                executable_path = Path(local_name_dir)
-                                build_and_run.run_executable(path=executable_path, execution_timeout=config_obj.execution_timeout, input=config_obj.input_string or None, output_logs=True)
-                            except TimeoutExpired:
-                                print(f"{Fore.YELLOW}(WARNING) - Student {name}'s lab took too long.{Style.RESET_ALL}")
-                            except FileNotFoundError:
-                                print(
-                                    f"{Fore.YELLOW}(ERROR) - Student {name}'s lab didn't produce an executable. Double check that their submission is correct.{Style.RESET_ALL}")
 
 
 def main(lab_name, grader):
